@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+!*.js
+!*.md
+!package.json
+!package-lock.json
+
+!m3u8-to-mp4
