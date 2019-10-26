@@ -1,15 +1,21 @@
 {
   "name": "younow-download",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Just because you can't download moments from YouNow (https://younow.zendesk.com/hc/en-us/articles/208995546-Can-I-download-moments), now you can! (kinda).",
+  "main": "app.js",
   "author": "Micael Levi L. C. <mykael2010@hotmail.com>",
-  "keywords": [],
+  "keywords": [
+    "younow"
+  ],
   "scripts": {
     "postinstall": "npm install --prefix m3u8-to-mp4"
   },
   "license": "ISC",
   "dependencies": {
     "node-fetch": "^2.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/micalevisk/younow-download.git"
   }
 }

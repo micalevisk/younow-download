@@ -1,23 +1,35 @@
 /**
- * @description M3U8 to MP4 Converter
- * @author Furkan Inanc (modified by Micael)
- * @version 1.2.0
+ * @description M3U8 to MP4 Converter (Event-driven)
+ * @author Furkan Inanc (modified by Micael Levi)
+ * @version 2.0.0
  */
 
-const ffmpeg = require("fluent-ffmpeg");
+const events = require('events');
+const fs = require('fs');
+const ffmpeg = require('fluent-ffmpeg');
 
 /**
  * A class to convert M3U8 to MP4
  * @class
  */
-class m3u8ToMp4Converter {
+class M3u8ToMp4Converter extends events.EventEmitter {
+  __emitErrorOnNextTick(err) {
+    process.nextTick(() => {
+      this.emit('error', err);
+    });
+  }
+
   /**
    * Sets the input file
    * @param {String} filename M3U8 file path. You can use remote URL
    * @returns {Function}
    */
   setInputFile(filename) {
-    if (!filename) throw new Error("You must specify the M3U8 file address");
+    if (!filename) {
+      this.__emitErrorOnNextTick( new Error('You must specify the M3U8 file address') );
+      return this;
+    }
+
     this.M3U8_FILE = filename;
 
     return this;
@@ -29,36 +41,41 @@ class m3u8ToMp4Converter {
    * @returns {Function}
    */
   setOutputFile(filename) {
-    if (!filename) throw new Error("You must specify the file path and name");
+    if (!filename) {
+      this.__emitErrorOnNextTick( new Error('You must specify the file path and name') );
+      return this;
+    }
+
+    if (fs.existsSync(filename)) {
+      this.__emitErrorOnNextTick( new Error('File exists: ' + filename) );
+      return this;
+    }
+
     this.OUTPUT_FILE = filename;
 
     return this;
   }
 
   /**
-   * Starts the process
+   * Starts the process.
    */
-  start(onProgressCallback = (progress) => {}) {
-    return new Promise((resolve, reject) => {
-      if (!this.M3U8_FILE || !this.OUTPUT_FILE) {
-        reject(new Error("You must specify the input and the output files"));
-        return;
-      }
+  start() {
+    if (!this.M3U8_FILE || !this.OUTPUT_FILE) {
+      this.__emitErrorOnNextTick( new Error('You must specify the input and the output files') );
+      return this;
+    }
 
-      ffmpeg(this.M3U8_FILE)
-        .on("error", error => {
-          reject(new Error(error));
-        })
-        .on("end", () => {
-          resolve();
-        })
-        .on("progress", onProgressCallback)
-        .outputOptions("-c copy")
-        .outputOptions("-bsf:a aac_adtstoasc")
-        .output(this.OUTPUT_FILE)
-        .run();
-    });
+    ffmpeg(this.M3U8_FILE)
+      .outputOptions('-c copy')
+      .outputOptions('-bsf:a aac_adtstoasc')
+      .output(this.OUTPUT_FILE)
+      .on('error', err => this.emit('error', err))
+      .on('progress', progress => this.emit('progress', { ...progress, percent: progress.percent.toFixed(2) + '%' }))
+      .on('end', () => this.emit('end'))
+      .run();
+
+    return this;
   }
 }
 
-module.exports = m3u8ToMp4Converter;
+module.exports = M3u8ToMp4Converter;
