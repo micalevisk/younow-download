@@ -70,7 +70,7 @@ class M3u8ToMp4Converter extends events.EventEmitter {
       .outputOptions('-bsf:a aac_adtstoasc')
       .output(this.OUTPUT_FILE)
       .on('error', err => this.emit('error', err))
-      .on('progress', progress => this.emit('progress', { ...progress, percent: progress.percent.toFixed(2) + '%' }))
+      .on('progress', progress => this.emit('progress', { ...progress, percent: (progress.percent ? progress.percent.toFixed(2) : '100.00') + '%' }))
       .on('end', () => this.emit('end'))
       .run();
 
