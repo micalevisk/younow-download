@@ -3,21 +3,39 @@ const fs = require('fs');
 const fetch = require('node-fetch');
 const m3u8ToMp4 = require('./m3u8-to-mp4');
 
+const runningAsScript = (require.main === module);
+
 const API_BASE_URL = 'https://api.younow.com/php/api'; // If this won't work, try change `api` to `cdn`
 
 const params = {
-  broadcastId: process.argv[2],
-  createdBefore: process.argv[2], // min: 0
-  records: process.argv[3], // max: 19
-  channel: process.argv[4],
-  pathToOutputDir: process.argv[5] || process.argv[3],
+  opts: {
+    donwloadMomentsInRange: (process.argv.length === 6),
+    downloadAll: (process.argv.length === 5),
+    broadcastOnly: (process.argv.length === 4),
+  },
 };
 
-if (!(params.broadcastId && params.pathToOutputDir) || (process.argv.length !== 6 && process.argv.length !== 4)) {
-  throw Error('Missing parameters.');
-}
+Object.assign(params, {
+  broadcastId: process.argv[2],
+  createdBefore: (params.opts.donwloadMomentsInRange && process.argv[2]) || (params.opts.downloadAll && process.argv[3]),
+  records: process.argv[3],
+  channel: (params.opts.donwloadMomentsInRange && process.argv[4]) || (params.opts.downloadAll && process.argv[2]),
+  pathToOutputDir: (
+       (params.opts.donwloadMomentsInRange && process.argv[5])
+    || (params.opts.downloadAll && process.argv[4])
+    || (params.opts.broadcastOnly && process.argv[2])
+  ),
+})
 
-downloadMoments(params);
+if (runningAsScript) {
+  if (!params.pathToOutputDir || !Object.values(params.opts).includes(true)) {
+    throw Error('Missing parameters.');
+  }
+
+  downloadMoments(params);
+} else {
+  /* TODO: programmatically usage */
+}
 
 
 
@@ -122,16 +140,18 @@ async function mapItemToMoment(item) {
 
 /**
  *
- * @param {{channelId:string, createdBefore:string, records:number}} opts
+ * @param {{channel:string, createdBefore:string, records:number}} opts
  * @returns {Promise<{hasMore:boolean, list:string[], lastCreated:number}>}
  */
-async function getMomentsFromProfile({ channelId, createdBefore, records }) {
+async function getMomentsFromProfile({ channel, createdBefore, records }) {
   if (records >= 19) {
     // Normalize the number of records due to YouNow's API business logic.
     records = 20; // When records is 19 the API returns 18 items but
                   // when records is 20 (or greater) the API returns 19 items.
                   // So 19 -> 20, and [any value greater than 20] -> 20.
   }
+
+  const channelId = await getUserId(channel);
 
   const endpoint = `${API_BASE_URL}/moment/profile/channelId=${channelId}/createdBefore=${createdBefore}/records=${records}`;
   console.info('[fetch:try]', endpoint);
@@ -158,9 +178,10 @@ async function getMomentsFromProfile({ channelId, createdBefore, records }) {
  *
  * @param {string} inputPath
  * @param {string} outputhPath
+ * @param {string} id
  * @returns {Promise}
  */
-function convertM3u8ToMp4(inputPath, outputhPath, id = '') {
+function convertM3u8ToMp4(inputPath, outputhPath, id) {
   return new Promise((resolve, reject) => {
     const converter = new m3u8ToMp4();
     console.info('[convert:try]', inputPath);
@@ -172,7 +193,7 @@ function convertM3u8ToMp4(inputPath, outputhPath, id = '') {
         console.info(`[processing:${id}]`, percent, currentFps + ' fps');
       })
       .once('error', (err) => {
-        // FIXME: when an error happen, it's getting stuck after reject
+        // FIXME: when an error happens, it's getting stuck after reject
         console.info('[convert:error]', err.message);
         return reject({ err, id });
       })
@@ -239,8 +260,8 @@ function initResolvers(whenConvertAll) {
     console.info('[enqueue:try]', id);
 
     const inputPath = makeM3U8RemotePath(id);
-    const whenConvert = convertM3u8ToMp4(inputPath, outputFile, id).then((args) => ({
-      ...args,
+    const whenConvert = convertM3u8ToMp4(inputPath, outputFile, id).then((id) => ({
+      id,
       createdAt,
     }));
 
@@ -260,7 +281,7 @@ function initResolvers(whenConvertAll) {
     const lastMoment = moments[ moments.length - 1 ];
 
     const outputDir = makeDirPath(broadcast.createdAt, firstMoment.momentId, lastMoment.momentId);
-    if (fs.existsSync(outputDir)) {
+    if (fs.existsSync(outputDir)) { // FIXME: the same range can be download twice
       console.info('[mkdir:skip]', outputDir);
     } else {
 
@@ -304,11 +325,11 @@ async function handlePromisesChain(promises) {
     } else if (curr.status === 'fulfilled') {
       acum[1].push(curr);
     }
-    
+
     return acum;
   }, [[], []]);
 
-  
+
   return [
     promisesRejected,//.map(({ reason }) => console.info(reason)),
     promisesFulfilled//.map(({ value }) => console.info(value)),
@@ -316,10 +337,8 @@ async function handlePromisesChain(promises) {
 }
 
 async function donwloadAllMoments({ createdBefore, records, channel }) {
-  const channelId = await getUserId(channel);
-
   const moments = await getMomentsFromProfile({
-    channelId,
+    channel,
     createdBefore,
     records,
   });
@@ -353,11 +372,74 @@ async function downloadBroadcastMoments({ broadcastId }) {
   }
 }
 
+var iiiii = 1;
+// TODO: em caso de timeout, parar e informar o último createdBefore recuperado com sucesso
+async function downloadAll({ channel, createdBefore = 1 }) {
+  iiiii++;
+  const defaultData = { hasMore: false, items: [] };
 
-async function downloadMoments(params) {
-  if (params.channel && params.pathToOutputDir) {
+  // FIXME: look for channelId even when it was found before
+  let moments = await getMomentsFromProfile({ channel, createdBefore, records: 1 }) || defaultData;
+  if (!moments.items) {
+    return;
+  }
+
+  if (moments.items.length <= 0) {
+    // try again but with more records
+    moments = await getMomentsFromProfile({ channel, createdBefore, records: 2 }) || defaultData;
+    if (!moments.items) {
+      return;
+    }
+  }
+
+  if (moments.items.length <= 0) {
+    // last attempt
+    moments = await getMomentsFromProfile({ channel, createdBefore, records: 3 }) || defaultData;
+    if (!moments.items) {
+      return;
+    }
+  }
+
+  const broadcast = moments.items[0];
+  let nextDateArg = broadcast.createdAt / 1000;
+
+  console.log(iiiii, '----------');
+  fs.appendFileSync('node.access.log', nextDateArg + '\r\n');//§
+  console.log(nextDateArg);
+
+  const whenConvertAll = [];
+  const resolverService = initResolvers(whenConvertAll);
+
+  for (const broadcast of moments.items) {
+    if (broadcast.type === 'captures') {
+      resolverService.resolveCaptures(broadcast);
+    } else if (broadcast.type === 'guest') {
+      resolverService.resolveGuest(broadcast);
+    } else {
+      console.info('[skip:unknown_moment_type]', type);
+    }
+  }
+
+  await handlePromisesChain(whenConvertAll);
+
+  if (moments.hasMore) {
+    return downloadAll({ channel, createdBefore: nextDateArg })
+  }
+}
+
+
+function downloadMoments(params) {
+  if (params.opts.downloadAll) {
+    return downloadAll(params)
+      .catch(err => console.info('[download:error]', err.message))
+
+  }
+
+  if (params.opts.donwloadMomentsInRange) {
     return donwloadAllMoments(params);
-  } else {
+  }
+
+  if (params.opts.broadcastOnly) {
     return downloadBroadcastMoments(params);
   }
 }

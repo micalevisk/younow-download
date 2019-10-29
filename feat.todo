@@ -1,0 +1,9 @@
+tentar algoritmo num script
+
+1) começar do último:
+node app 0 1 iamhannahstone __videos__
+> deve retornar o último `created` (e não `createdAt`) de 
+https://api.younow.com/php/api/moment/profile/channelId=3098542/createdBefore=0/records=1
+
+Enquanto tiver retornando algo,
+usar o que foi retornado para repetir (1) usando esse valor como argumento pro `createdBefore`

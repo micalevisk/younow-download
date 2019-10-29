@@ -31,6 +31,15 @@ node app <CREATED_BEFORE> <RECORDS> <CHANNEL> <PATH/TO/OUTPUT/DIRECTORY/>
 node app 0 2 iamhannahstone __videos__
 ```
 
+### Download
+
+```bash
+node app <CHANNEL> <CREATED_BEFORE> <PATH/TO/OUTPUT/DIRECTORY/>
+
+## EXAMPLE: download all captured moments from the last to the first
+node app iamhannahstone 0 __videos__
+```
+
 ### Download all captured broadcast moments
 
 ```bash
