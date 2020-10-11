@@ -249,6 +249,30 @@ function initResolvers(whenConvertAll) {
     console.info('[enqueue:done]', id);
   };
 
+    function resolveCapture(moment) {
+        if (!moment) {
+            console.info('[resolve-capture:nothing]', moment);
+            return;
+        }
+
+        const outputDir = makeDirPath(moment.createdAt, moment.momentId, moment.momentId);
+        if (fs.existsSync(outputDir)) {
+            console.info('[mkdir:skip]', outputDir);
+        } else {
+            try {
+                console.info('[mkdir:try]', outputDir);
+                fs.mkdirSync(outputDir);
+                console.info('[mkdir:done]', outputDir);
+                const {momentId: id, createdAt} = moment;
+                const outputFile = path.join(outputDir, makeFilename(createdAt, id, 1));
+                enqueue(id, createdAt, outputFile);
+            } catch (err) {
+                console.info('[mkdir:fail]', err.message);
+            }
+
+        }
+    }
+
   function resolveCaptures(broadcast) {
     const moments = broadcast.moments;
     if (!moments.length) {
@@ -290,7 +314,8 @@ function initResolvers(whenConvertAll) {
 
 
   return {
-    resolveCaptures,
+      resolveCapture,
+      resolveCaptures,
     resolveGuest,
   };
 }
@@ -330,6 +355,8 @@ async function donwloadAllMoments({ createdBefore, records, channel }) {
   for (const broadcast of moments.items) {
     if (broadcast.type === 'captures') {
       resolverService.resolveCaptures(broadcast);
+    } else if (broadcast.type === 'capture') {
+        resolverService.resolveCapture(broadcast);
     } else if (broadcast.type === 'guest') {
       resolverService.resolveGuest(broadcast);
     } else {
