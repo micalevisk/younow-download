@@ -304,11 +304,11 @@ async function handlePromisesChain(promises) {
     } else if (curr.status === 'fulfilled') {
       acum[1].push(curr);
     }
-    
+
     return acum;
   }, [[], []]);
 
-  
+
   return [
     promisesRejected,//.map(({ reason }) => console.info(reason)),
     promisesFulfilled//.map(({ value }) => console.info(value)),
@@ -333,7 +333,7 @@ async function donwloadAllMoments({ createdBefore, records, channel }) {
     } else if (broadcast.type === 'guest') {
       resolverService.resolveGuest(broadcast);
     } else {
-      console.info('[skip:unknown_moment_type]', type);
+      console.info('[skip:unknown_moment_type]', broadcast.type);
     }
   }
 
