@@ -1,6 +1,6 @@
 {
   "name": "younow-download",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Just because you can't download moments from YouNow (https://younow.zendesk.com/hc/en-us/articles/208995546-Can-I-download-moments), now you can! (kinda).",
   "main": "app.js",
   "author": "Micael Levi L. C. <mykael2010@hotmail.com>",
